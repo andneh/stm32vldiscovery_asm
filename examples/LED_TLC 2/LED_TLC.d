@@ -1,0 +1,2 @@
+LED_TLC.o: LED_TLC.asm
+LED_TLC.o: INI.s

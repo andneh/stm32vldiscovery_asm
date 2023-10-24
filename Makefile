@@ -1,5 +1,5 @@
 # Project name
-TARGET = blink
+TARGET = flash.bin
 
 # Directories
 SRC_DIR = src
