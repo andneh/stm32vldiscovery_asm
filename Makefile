@@ -13,7 +13,7 @@ SRC = $(wildcard $(SRC_DIR)/*.S)
 OBJ = $(patsubst $(SRC_DIR)/%.S, $(BUILD_DIR)/%.o, $(ASM_SRC))
 
 # Linker script
-LD_SCRIPT = $(LD_DIR)/stm32f103c8t6.ld
+LD_SCRIPT = $(LD_DIR)/STM32F100RBTx_FLASH.ld
 
 # Output file
 ELF = $(BUILD_DIR)/$(TARGET).elf

@@ -8,26 +8,27 @@
 //.word reset_handler
 
 
-.include "src/ini.s"
-//.equ konst, 100
+.include "src/stm32f100xb.s"
+.equ konst, 100
 .equ doba, 0x10000
-.equ doba, 0x10
+//.equ konst, 1
+//.equ doba, 0x10
 
 
+.global main
 
 .section .text
 
-    .global rcc_cnf
-    .global delay
-    .global gpio_cnf
+//    .global rcc_cnf
+//    .global delay
+//    .global gpio_cnf
 
-    .global reset_handler
-    reset_handler:
-        bl main
-        b .
+//    .global reset_handler
+//    reset_handler:
+//        b main
+//        b .
 
 
-    .global main
     main:
         bl rcc_cnf
         bl gpio_cnf
@@ -49,7 +50,7 @@
     no_hse_rdy:
         ldr		r1, [r0]		// nacteni do r1 stav registru rcc_cr
         tst	 	r1, #0x20000	// test stability hse, (r0 & 0x20000)
-        //beq 	no_hse_rdy		// skok pri nestabilite, pri stabilite se pokracuje v kodu
+        beq 	no_hse_rdy		// skok pri nestabilite, pri stabilite se pokracuje v kodu
 
         ldr		r0, =rcc_cfgr	// nacteni adresy rcc_cfgr (clock configuration register) do r0
         ldr		r1, [r0]		// nacteni do r1 stav registru rcc_cfgr
@@ -80,7 +81,7 @@
     no_pll_rdy:
         ldr		r1, [r0]		// nacteni stavu registru rcc_cr do r1
         tst		r1, #0x2000000	// test spusteni pll (test stability)
-        //beq		no_pll_rdy		// skok na navesti no_pll_rdy pri nespustene pll
+        beq		no_pll_rdy		// skok na navesti no_pll_rdy pri nespustene pll
 
         ldr		r0, =rcc_cfgr	// kopie adresy rcc_cfgr do r0
         ldr		r1, [r0]		// nacteni stavu registru rcc_cfgr do r1
@@ -117,7 +118,7 @@
                 //ldr		r2, =codr8        //adresa pro bitove adresovani pc8, zapisuje se pouze jediny bit- nejnizsi bit ze slova
                             //  zkuste zamenit dva predchazejici radky  zamenou stredniku a jeste dale nize
                                 // navesti loop hlani smysky
-        mov		r1, #0			// vlozeni hodnoty 0 do r1
+        mov		r1, #0x000			// vlozeni hodnoty 0 do r1
 
         str		r1, [r2]		// zapis hodnoty v r1 na adresu v r2, tj. nulovani vsech bitu
                                 // na brane c (led na pc8 nesviti)
