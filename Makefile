@@ -1,5 +1,5 @@
 # Project name
-TARGET = flash.bin
+TARGET = firmware
 
 # Directories
 SRC_DIR = src

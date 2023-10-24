@@ -1,3 +1,22 @@
+.cpu cortex-m3
+.arch armv7-m
+.fpu softvfp
+.syntax unified
+.thumb
+
+//.word 0x20005000
+//.word reset_handler
+
+
+.include "src/stm32f100xb.s"
+.equ konst, 100
+.equ doba, 0x10000
+//.equ konst, 1
+//.equ doba, 0x10
+
+
+.global main
+
 .section .text
 	main:						// main navesti hlavni smycky programu
 		bl		rcc_cnf			// volani podprogramu nastaveni hodinoveho systemu procesoru
