@@ -7,47 +7,19 @@
 
 .include "src/stm32f100xb.s"
 .equ konst, 100
+//.equ konst, 100
 .equ doba, 0x10000
 //.equ konst, 1
 //.equ doba, 0x10
+
+.equ pc8_mask, 0x0100
+.equ pc9_mask, 0x0200
+
 
 
 .global main
 
 .section .text
-
-    main:						    // main specifies the main loops of the program
-        bl  rcc_cnf			    // subroutine call setting the CPU clock system
-                                    // i.e. jump to the address with the rcc_cnf setting and save the return
-                                    // address to lr (link register)
-                                    // i.e. jump to the address with gpio_cnf set
-                                    //*!* note when using the subroutine call to the bl instruction
-                                    // this instruction is already used in the subroutine handler, because
-                                    // would overwrite lr and lose the return address ->
-                                    // other instructions (push, pop) can be used *!*
-
-        //bl  rcc_hse_cnf              // High-Speed External Clock Configuration
-        //bl  rcc_sclk_cnf             // System Clock Configuration (SCLK)
-        //bl  rcc_ppre2_cnf            // APB2 Prescaler Configuration
-        //bl  rcc_ppre1_cnf            // APB1 Prescaler Configuration
-        //bl  rcc_pll_cnf              // Phase-Locked Loop (PLL) Configuration
-        //bl  sysclk_cnf               // System Clock Configuration
-        //bl  rcc_apb2enr_cnf          // APB2 Peripheral Clock Enable Register
-
-        bl  gpio_cnf		    // subroutine call setting the GPIO
-
-        ldr		r2, =gpioc_odr	// copy the address of gate c from r2 to r2, gpioc_odr is in the file stm32f100xb.S
-        mov 	r1,#0			// auxiliary register with led status
-        mov		r3,#0			// auxiliary register determining the branching of the program
-        mov		r4,#0			// auxiliary software citator slowing down flashing
-        ldr		r5, =gpioa_idr 	// copy gate address and idr to r5, gpioa_idr is in the file stm32f100xb.S
-        // idr - input data register
-        bl loop
-        b .
-
-
-
-
 
 
 
@@ -164,17 +136,20 @@
 
 
 	delay:
+        cmp		r0, #0			    //check if r0 is not 0
+        beq		end_delay		    // if r0 = 0, jump to end_delay
 		push	{r2, lr}		    // save the value of r2 to the tray (r2 can be edited)
                                     // and saving the return address to the tray
-		b wait1
+		//b wait1
 	wait1:
 		ldr		r2, =40000		    // inserting the delay constant into r2
-		b wait
+		//b wait
 	wait:
 		subs	r2, r2, #1		    // subtract 1 from r2,i.e. r2 = r2 - 1 and set the primitive register
 		bne		wait			    // jump to set when r2 is non-zero (jump according to the primitive)
 		subs	r0, r0, #1
 		bne		wait1
+	end_delay:
 		pop		{r2, pc}		    // return from subroutine, restore the value of r2 from the stack
 		// bx      lr				// and return addresses to pc
 		nop
@@ -182,70 +157,90 @@
 
 
 
+main:						    // main specifies the main loops of the program
+        bl  rcc_cnf			    // subroutine call setting the CPU clock system
+        //bl  rcc_hse_cnf              // High-Speed External Clock Configuration
+        //bl  rcc_sclk_cnf             // System Clock Configuration (SCLK)
+        //bl  rcc_ppre2_cnf            // APB2 Prescaler Configuration
+        //bl  rcc_ppre1_cnf            // APB1 Prescaler Configuration
+        //bl  rcc_pll_cnf              // Phase-Locked Loop (PLL) Configuration
+        //bl  sysclk_cnf               // System Clock Configuration
+        //bl  rcc_apb2enr_cnf          // APB2 Peripheral Clock Enable Register
+
+        bl  gpio_cnf		    // subroutine call setting the GPIO
+        //bl push_pull_output     // subroutine call setting the GPIO
+        //bl push_pull_input      // subroutine call setting the GPIO
 
 
+        //mov 	r2,#0
+        mov 	r4,#0			// timmer value
+        mov		r5,#0			// time value
+        mov		r6,#0			// button state
+        ldr		r7, =gpioc_odr	// copy the address of gate c from r2 to r2, gpioc_odr is in the file stm32f100xb.S
+        ldr		r8, =gpioa_idr 	// copy gate address and idr to r5, gpioa_idr is in the file stm32f100xb.S
 
-
+        // idr - input data register
+        //b loop
 	loop:
-		tst		r3, #0x1	        // test which branch is selected by register r3
-		beq		branch2		        // if branch2 then jump to it, otherwise continue
 
 
-	branch1:
-		tst		r4, #0x80000
-		beq 	zero		        // if r4 has incremented to 0x80000 continue, otherwise jump to zero
-        mov 	r4, #0 		        // reset r4, tick the cycle once every 0x80000
 
-		tst 	r1, #0x0100	        // test which led was last lit
-		beq 	blue		        // if blue, continue, if red jump to blue
+        bl on8
+        bl on9
 
-	red:
-		mov		r1, #0x0200	        // 9th bit to 1
-		str		r1, [r2]	        // light up the red led
-		b 		common		        // continue with button test
-
-	blue:
-		mov		r1, #0x0100	        // 8th bit to 1
-		str		r1, [r2]	        //light blue led
-		b 		common		        // continue button test
-
-	branch2:
-		tst		r4, #0x80000
-		beq 	zero		        // if r4 has incremented to 0x80000 continue, otherwise jump to zero
-		mov 	r4, #0		        // reset r4, tick the cycle once every 0x80000
-		tst 	r1, #0x0300	        // test if both leds were lit last time or none
-		beq 	both                // if none jump to indicate both, otherwise continue
-
-	none:
-		mov		r1, #0		        // last time both were lit, must reset
-		str		r1, [r2]	        // both leds off
-		b 		common		        // jump to test button
-
-	both:
-		mov		r1, #0x0300	        // they were not lit last time, turn on both
-		str		r1, [r2]	        // light both leds
-		b 		common		        // jump to test button
-
-	zero:
-		add		r4,r4,#1	        // test r4 was negative (not reached 0x080000), we have to increment further
+        mov		r0, #100		// if yes, do a small delay for debouncing
+        bl		delay
 
 
-	common:
-		ldr		r0, [r5]	// copy the value from the address in r5 to r0
-		tst		r0, #0x1	// test if there is 1 = button pressed
-		beq		loop		// if not, go to the beginning
+        bl off8
+        bl off9
 
-		mov		r0, #50		// if yes, do a small delay for debouncing
-		bl		delay
 
-		tst		r3, #0x1	// test the last r3 throw
-		beq		test		// if 0, jump to the next test otherwise continue
+        mov		r0, #100		// if yes, do a small delay for debouncing
+        bl		delay
 
-		mov		r3, #0		// last test was 1, write 0
-		b 		loop		// jump to the beginning
 
-	test:
-		mov		r3, #1		// last time was 0, write 1
-		b		loop		// jump to loop
+	    bl loop
+
+
+
+    on8:
+        mov r0, #pc8_mask
+        b set_r0_pin_on
+
+    off8:
+        mov r0, #pc8_mask
+        bl set_r0_pin_off
+
+    on9:
+        mov r0, #pc9_mask
+        bl set_r0_pin_on
+
+    off9:
+        mov r0, #pc9_mask
+        bl set_r0_pin_off
+
+
+
+    set_r0_pin_on:
+        ldr     r7, =gpioc_odr      // get the address of the GPIO output data register
+        ldr     r1, [r7]            // get the value of the GPIO output data register
+        orr     r1, r1, r0          // set the pin to 1 (bitwise OR)
+        str     r1, [r7]            // write the new value to the GPIO output data register
+        bx      lr                  // return from subroutine, jump to address in lr
+
+
+    set_r0_pin_off:
+        //mov     r0, #mask             // move the PIN mask
+        ldr		r7, =gpioc_odr      // get the address of the GPIO output data register
+        ldr		r1, [r7]            // get the value of the GPIO output data register
+        bic     r1, r1, r0          // set pin to 0
+        str     r1, [r7]            // write the new value to the GPIO output data register
+        bx 		lr                  // return from subroutine, jump to address in lr
+
+    get_idr_value_in_r0:
+        ldr		r6, =gpioa_idr 	// copy gate address and idr to r5, gpioa_idr is in the file stm32f100xb.S
+        ldr		r0, [r6]	// copy the value from the address in r5 to r0
+        bx		lr
 
 .end

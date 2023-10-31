@@ -1,26 +1,45 @@
 @startuml
-
 start
-
-if (button idr) then (1)
-  :on9;
-  if (prev button idr) then (1)
-    :prev button idr = 0;
-    :r5 = 3s;
-    :on8;
-  else (0)
-    :prev button idr = 1;
-    :r5 = 10s;
-    :on8;
+: idr = 0;
+while (true)
+  : r1 = 0x000;
+  : r2 = 0x000;
+  : r3 = 0x000;
+  if (idr == 1) then (yes)
+    : on9();
+    if (r1 == 0x0000) then (yes)
+      : r1 = r1 + 0x1000;
+    else (no)
+      if (r1 == 0x1000) then (yes)
+        : r1 = r1 + 1;
+        if (r1 == 0x1000+4) then (yes)
+          : r2 = 0x3;
+        else (no)
+          if (r1 == 0x1000+4*3) then (yes)
+            : r2 = 0x10;
+          endif
+        endif
+      endif
+    endif
+  else (no)
+    if (r1 = 0x1000) then (yes)
+      : r1 = 0x01000;
+    endif
+    if (r1 = 0x01000) then (yes)
+      : r1 = 0x000;
+    endif
+        :213;
   endif
-else (0)
+    :213;
+  if (r1 = 0x01000) then (yes)
+    : on8();
+    if (r2 == 0x3) then (yes)
+      : // 3 second time state
+    endif
 
-endif
-
-' repeat while r5 != 0 and blinking led8 after 10 seconds
-  :r5 = r5 - 0.25s;
+  endif
+  : delay(25);
 
 
 stop
-
 @enduml
