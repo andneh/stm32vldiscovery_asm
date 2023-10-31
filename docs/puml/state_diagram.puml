@@ -1,0 +1,44 @@
+@startuml
+
+skinparam shadowing false
+
+state button{
+    state wait as "wait (00)"
+    state pressed as "pressed (01)"
+    state released as "released (10)"
+    state released_long as "released long (11)"
+    [*] --> wait
+    wait --> wait : each 0.25s
+    wait --> pressed : r1 = 0x10
+    pressed --> released : r1 = 0x01
+    released --> pressed : r1 = 0x10
+    released --> released_long
+
+    released_long --> pressed
+}
+
+state led9{
+    state on9 as "on (1)"
+    state off9 as "off (0)"
+'    on9 --> off9
+'    off9 --> on9
+}
+
+state led8{
+    state on8 as "on (10)"
+    state blinkon8 as "blink on (11)"
+    state blinkoff8 as "blink off (10)"
+    state off8 as "off (00)"
+'    [*] --> on8
+    on8 --> blinkon8
+    blinkon8 --> blinkoff8
+    blinkoff8 --> blinkon8
+    blinkoff8 --> off8
+'    off8 --> on8
+}
+
+pressed --> on9 : bl on9
+released --> on8 : r5=3s bl on8
+released_long --> on8 : r5=10s bl on8
+off8 --> off9 : bl off9
+@enduml

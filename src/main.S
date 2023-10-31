@@ -43,6 +43,7 @@
         ldr		r5, =gpioa_idr 	// copy gate address and idr to r5, gpioa_idr is in the file stm32f100xb.S
         // idr - input data register
         bl loop
+        b .
 
 
 

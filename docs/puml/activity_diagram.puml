@@ -1,0 +1,26 @@
+@startuml
+
+start
+
+if (button idr) then (1)
+  :on9;
+  if (prev button idr) then (1)
+    :prev button idr = 0;
+    :r5 = 3s;
+    :on8;
+  else (0)
+    :prev button idr = 1;
+    :r5 = 10s;
+    :on8;
+  endif
+else (0)
+
+endif
+
+' repeat while r5 != 0 and blinking led8 after 10 seconds
+  :r5 = r5 - 0.25s;
+
+
+stop
+
+@enduml
