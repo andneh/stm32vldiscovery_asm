@@ -182,27 +182,33 @@ main:						    // main specifies the main loops of the program
         // idr - input data register
         //b loop
 	loop:
-
-
-
-        bl on8
-        bl on9
-
-        mov		r0, #100		// if yes, do a small delay for debouncing
-        bl		delay
-
-
         bl off8
         bl off9
+	    //bl offboth
+
+        bl get_idr_value_in_r0
+        tst r0, #0x1
+        beq on8
 
 
-        mov		r0, #100		// if yes, do a small delay for debouncing
-        bl		delay
+        //mov		r0, #100		// if yes, do a small delay for debouncing
+        //bl		delay
+
+
+        //bl off8
+
+
 
 
 	    bl loop
 
+    onboth:
+        b on8
+        b on9
 
+    offboth:
+         b off8
+         b off9
 
     on8:
         mov r0, #pc8_mask
@@ -239,8 +245,8 @@ main:						    // main specifies the main loops of the program
         bx 		lr                  // return from subroutine, jump to address in lr
 
     get_idr_value_in_r0:
-        ldr		r6, =gpioa_idr 	// copy gate address and idr to r5, gpioa_idr is in the file stm32f100xb.S
-        ldr		r0, [r6]	// copy the value from the address in r5 to r0
+        ldr		r8, =gpioa_idr 	// copy gate address and idr to r5, gpioa_idr is in the file stm32f100xb.S
+        ldr		r0, [r8]	// copy the value from the address in r5 to r0
         bx		lr
 
 .end
