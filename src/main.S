@@ -7,47 +7,27 @@
 
 .include "src/stm32f100xb.s"
 .equ konst, 100
+//.equ konst, 100
 .equ doba, 0x10000
 //.equ konst, 1
 //.equ doba, 0x10
 
+.equ pc8_mask, 0x0100
+.equ pc9_mask, 0x0200
+
+
+.section .data
+    button_state:   .word 0x00
+    button_value:   .word 0
+    timer_state:   .word 0x0000
+    timer_value:   .word 25
 
 .global main
 
 .section .text
 
-    main:						    // main specifies the main loops of the program
-        bl  rcc_cnf			    // subroutine call setting the CPU clock system
-                                    // i.e. jump to the address with the rcc_cnf setting and save the return
-                                    // address to lr (link register)
-                                    // i.e. jump to the address with gpio_cnf set
-                                    //*!* note when using the subroutine call to the bl instruction
-                                    // this instruction is already used in the subroutine handler, because
-                                    // would overwrite lr and lose the return address ->
-                                    // other instructions (push, pop) can be used *!*
 
-        //bl  rcc_hse_cnf              // High-Speed External Clock Configuration
-        //bl  rcc_sclk_cnf             // System Clock Configuration (SCLK)
-        //bl  rcc_ppre2_cnf            // APB2 Prescaler Configuration
-        //bl  rcc_ppre1_cnf            // APB1 Prescaler Configuration
-        //bl  rcc_pll_cnf              // Phase-Locked Loop (PLL) Configuration
-        //bl  sysclk_cnf               // System Clock Configuration
-        //bl  rcc_apb2enr_cnf          // APB2 Peripheral Clock Enable Register
-
-        bl  gpio_cnf		    // subroutine call setting the GPIO
-
-        ldr		r2, =gpioc_odr	// copy the address of gate c from r2 to r2, gpioc_odr is in the file stm32f100xb.S
-        mov 	r1,#0			// auxiliary register with led status
-        mov		r3,#0			// auxiliary register determining the branching of the program
-        mov		r4,#0			// auxiliary software citator slowing down flashing
-        ldr		r5, =gpioa_idr 	// copy gate address and idr to r5, gpioa_idr is in the file stm32f100xb.S
-        // idr - input data register
-        bl loop
-
-
-
-
-
+///////////////// hardware registers configuration  ////////////////////////
 
 
     rcc_cnf:                        // Reset and Clock Control (RCC) Configuration
@@ -158,93 +138,258 @@
 
 
 
-
+///////////////// deplay function  ////////////////////////
 
 
 
 	delay:
+        cmp		r0, #0			    //check if r0 is not 0
+        beq		end_delay		    // if r0 = 0, jump to end_delay
 		push	{r2, lr}		    // save the value of r2 to the tray (r2 can be edited)
                                     // and saving the return address to the tray
-		b wait1
+		//b wait1
 	wait1:
 		ldr		r2, =40000		    // inserting the delay constant into r2
-		b wait
+		//b wait
 	wait:
 		subs	r2, r2, #1		    // subtract 1 from r2,i.e. r2 = r2 - 1 and set the primitive register
 		bne		wait			    // jump to set when r2 is non-zero (jump according to the primitive)
 		subs	r0, r0, #1
 		bne		wait1
+	end_delay:
 		pop		{r2, pc}		    // return from subroutine, restore the value of r2 from the stack
 		// bx      lr				// and return addresses to pc
 		nop
 
 
 
+///////////////// start of program  ////////////////////////
 
+
+main:						    // main specifies the main loops of the program
+        bl  rcc_cnf			    // subroutine call setting the CPU clock system
+        //bl  rcc_hse_cnf              // High-Speed External Clock Configuration
+        //bl  rcc_sclk_cnf             // System Clock Configuration (SCLK)
+        //bl  rcc_ppre2_cnf            // APB2 Prescaler Configuration
+        //bl  rcc_ppre1_cnf            // APB1 Prescaler Configuration
+        //bl  rcc_pll_cnf              // Phase-Locked Loop (PLL) Configuration
+        //bl  sysclk_cnf               // System Clock Configuration
+        //bl  rcc_apb2enr_cnf          // APB2 Peripheral Clock Enable Register
+
+        bl  gpio_cnf		    // subroutine call setting the GPIO
+        //bl push_pull_output     // subroutine call setting the GPIO
+        //bl push_pull_input      // subroutine call setting the GPIO
+
+
+        //mov 	r2,#0
+        ldr		r7, =gpioc_odr	// copy the address of gate c from r2 to r2, gpioc_odr is in the file stm32f100xb.S
+        ldr		r8, =gpioa_idr 	// copy gate address and idr to r5, gpioa_idr is in the file stm32f100xb.S
+
+        // idr - input data register
+        //b loop
+
+
+
+///////////////// logical flow  ////////////////////////
 
 
 
 
 	loop:
-		tst		r3, #0x1	        // test which branch is selected by register r3
-		beq		branch2		        // if branch2 then jump to it, otherwise continue
+        mov		r0, 50		        // if yes, do a small delay for debouncing
+        bl		delay
+
+        ldr r0, =button_state    // load button state address to r0
+        ldr r1, [r0]            // copy the value from the address in r5 to r0
+        cmp r1, 0x01    //        if r1 == 0x1000:            # if button was pressed before
+        beq timer_alert_switch_check    //            r1 = r1 + 1             # each 25ms +1 bit of button time state
+        after_button_released_check:
+
+        bl get_idr_value_in_r0
+        cmp		r0, #0x1            //  if the button is  pressed
+        beq     button_pressed      // true  if the button is  pressed
+        b button_not_pressed        // false  if the button is  pressed
 
 
-	branch1:
-		tst		r4, #0x80000
-		beq 	zero		        // if r4 has incremented to 0x80000 continue, otherwise jump to zero
-        mov 	r4, #0 		        // reset r4, tick the cycle once every 0x80000
-
-		tst 	r1, #0x0100	        // test which led was last lit
-		beq 	blue		        // if blue, continue, if red jump to blue
-
-	red:
-		mov		r1, #0x0200	        // 9th bit to 1
-		str		r1, [r2]	        // light up the red led
-		b 		common		        // continue with button test
-
-	blue:
-		mov		r1, #0x0100	        // 8th bit to 1
-		str		r1, [r2]	        //light blue led
-		b 		common		        // continue button test
-
-	branch2:
-		tst		r4, #0x80000
-		beq 	zero		        // if r4 has incremented to 0x80000 continue, otherwise jump to zero
-		mov 	r4, #0		        // reset r4, tick the cycle once every 0x80000
-		tst 	r1, #0x0300	        // test if both leds were lit last time or none
-		beq 	both                // if none jump to indicate both, otherwise continue
-
-	none:
-		mov		r1, #0		        // last time both were lit, must reset
-		str		r1, [r2]	        // both leds off
-		b 		common		        // jump to test button
-
-	both:
-		mov		r1, #0x0300	        // they were not lit last time, turn on both
-		str		r1, [r2]	        // light both leds
-		b 		common		        // jump to test button
-
-	zero:
-		add		r4,r4,#1	        // test r4 was negative (not reached 0x080000), we have to increment further
+        b loop
 
 
-	common:
-		ldr		r0, [r5]	// copy the value from the address in r5 to r0
-		tst		r0, #0x1	// test if there is 1 = button pressed
-		beq		loop		// if not, go to the beginning
 
-		mov		r0, #50		// if yes, do a small delay for debouncing
-		bl		delay
 
-		tst		r3, #0x1	// test the last r3 throw
-		beq		test		// if 0, jump to the next test otherwise continue
+    button_not_pressed:
+        push {lr}
 
-		mov		r3, #0		// last test was 1, write 0
-		b 		loop		// jump to the beginning
+       ldr r0, =button_state    // load button state address to r0
+       ldr r1, [r0]            // copy the value from the address in r5 to r0
+       cmp r1, 0x10    //        if r1 == 0x1000:            # if button was pressed before
+       beq button_was_pressed    //            r1 = r1 + 1             # each 25ms +1 bit of button time state
+       b button_was_not_pressed
 
-	test:
-		mov		r3, #1		// last time was 0, write 1
-		b		loop		// jump to loop
+       end_of_button_pressed_check:
+       //pop {pc}
+       b loop
+
+
+       button_was_not_pressed:
+           //        if r1 == 0x0000:            # if button was not pressed before
+           //            r1 = r1 + 0x1000        # button pressed bit
+           b end_of_button_pressed_check
+
+       button_was_pressed:
+            bl red_on
+            ldr r1, =button_state   // get the address of the button_state
+            mov     r0, #0x01    // button was released bit
+            str     r0, [r1]      // save new value to button_state
+
+
+            ldr r1, =button_value   // get the address of the button_state
+            ldr     r0, [r1]    // button was pressed bit
+            cmp     r0, 4    // if button was pressed for 4*0.25 seconds
+            beq     set_timer_value_to_4
+            cmp     r0, 12    // if button was pressed for 12*0.25 seconds
+            beq     set_timer_value_to_12
+
+           b end_of_button_pressed_check
+           b loop
+
+
+       set_timer_value_to_4:
+            ldr r1, =timer_value   // get the address of the button_state
+            mov     r0, #4    // button was pressed bit
+            str     r0, [r1]      // save new value to button_state
+            b end_of_button_pressed_check
+
+
+       set_timer_value_to_12:
+            ldr r1, =timer_value   // get the address of the button_state
+            mov     r0, #12    // button was pressed bit
+            str     r0, [r1]      // save new value to button_state
+            b end_of_button_pressed_check
+
+    button_was_released:
+
+    timer_alert_switch_check:
+            ldr     r1, =timer_value
+            ldr     r0, [r1]            // copy the value from the address in r5 to r0
+
+            cmp     r0, 12                //if r5 == 0x12:                   # 6 second time state
+            beq     time_switch_red_off                    //blue_off()                       # turn on led8
+
+
+            cmp     r0, 10                //if r5 == 0x10:                 # 10 second time state
+            beq     time_switch_red_on                    //blue_on()                   # toogle led8
+
+            cmp     r0, 8                //if r5 == 0x8:                   # 4 second time state
+            beq     time_switch_red_off                    //blue_off()                       # turn on led8
+
+            cmp     r0, 6                //if r5 == 0x6:                   # 3 second time state
+            beq     time_switch_red_on                    //blue_on()                   # toogle led8
+
+            cmp     r0, 4                //if r5 == 0x4:                   # 2 second time state
+            beq     time_switch_red_off                    //blue_off()                       # turn on led8
+
+            cmp     r0, 2                //if r5 == 0x2:                   # 1 second time state
+            beq     time_switch_red_on                    //blue_on()                   # toogle led8
+
+            cmp     r0, 0                //if r5 == 0x0:                   # 0 second time state
+            beq     offboth                    //blue_off()                   # toogle led8
+    end_of_timer_alert_switch_check:
+    decrease_timer_value:
+            ldr     r1, =timer_value
+            ldr		r0, [r1]		// copy the value from the address in r5 to r0
+            sub     r0, r0, 1               //r0  = r0 - 1                    # each 25ms -1 bit of time state
+            str     r0, [r1]      // save new value to timer_value
+
+	        b after_button_released_check
+
+
+
+
+
+
+
+    button_pressed:
+        //push {lr}
+        bl blue_on                      // turn on led 8
+
+        ldr r1, =button_state   // get the address of the button_state
+        mov     r0, #0x10    // button was pressed bit
+        str     r0, [r1]      // save new value to button_state
+
+        ldr r1, =button_value   // get the address of the button_state
+        ldr     r0, [r1]    // button was pressed bit
+        add     r0, r0, 1    // adding 1*0.25s to button_value
+        str     r0, [r1]      // save new value to button_state
+        b loop
+
+
+
+
+
+
+
+
+
+
+///////////////// single action ////////////////////////
+    time_switch_red_on:
+        bl red_on
+        b end_of_timer_alert_switch_check
+
+    time_switch_red_off:
+        bl red_off
+        b end_of_timer_alert_switch_check
+
+    onboth:
+        b blue_on
+        b red_on
+
+    offboth:
+         bl blue_off
+         bl red_off
+         b end_of_timer_alert_switch_check
+
+    blue_on:
+        mov r0, #pc8_mask
+        b set_r0_pin_on
+
+    blue_off:
+        mov r0, #pc8_mask
+        b set_r0_pin_off
+
+    red_on:
+        mov r0, #pc9_mask
+        b set_r0_pin_on
+
+    red_off:
+        mov r0, #pc9_mask
+        b set_r0_pin_off
+
+
+///////////////// functions  ////////////////////////
+
+
+    set_r0_pin_on:
+        ldr     r7, =gpioc_odr      // get the address of the GPIO output data register
+        ldr     r1, [r7]            // get the value of the GPIO output data register
+        orr     r1, r1, r0          // set the pin to 1 (bitwise OR)
+        str     r1, [r7]            // write the new value to the GPIO output data register
+        bx      lr                  // return from subroutine, jump to address in lr
+
+
+    set_r0_pin_off:
+        //mov     r0, #mask             // move the PIN mask
+        ldr		r7, =gpioc_odr      // get the address of the GPIO output data register
+        ldr		r1, [r7]            // get the value of the GPIO output data register
+        bic     r1, r1, r0          // set pin to 0
+        str     r1, [r7]            // write the new value to the GPIO output data register
+        bx 		lr                  // return from subroutine, jump to address in lr
+
+    get_idr_value_in_r0:
+
+        //ldr		r8, =gpioa_idr 	// copy gate address and idr to r5, gpioa_idr is in the file stm32f100xb.S
+        ldr		r8, =aidr0 	// copy gate address and idr to r5, gpioa_idr is in the file stm32f100xb.S
+        ldr		r0, [r8]	// copy the value from the address in r5 to r0
+        bx		lr
 
 .end

@@ -1,0 +1,19 @@
+@startuml RegisterDiagram
+
+class r1 as "Button register" {
+  + was_pressed_state : bit
+  + was_released_state : bit
+  + pressed_time_value : bits
+}
+
+class r2 as "Time register" {
+  + time_value : bit
+}
+
+class r3 as "Timer register" {
+  + was_pressed_state : bit
+  + was_released_state : bit
+  + pressed_time_value : bits
+}
+
+@enduml
