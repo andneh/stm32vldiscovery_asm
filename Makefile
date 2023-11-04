@@ -82,12 +82,15 @@ elf_dump: $(ELF)
 $(BIN): $(ELF)
 	$(OBJCOPY) $(OBJCP_FLAGS) $< $@
 
+reset:
+	$(STL) reset
+
 # Flash the BIN file to the STM32 board
 flash: $(BIN) erase
 	$(STL) write $(BIN) 0x8000000
 
 # Erase the flash memory of the STM32 board
-erase:
+erase: reset
 	$(STL) erase
 
 # Flash the BIN file to the STM32 board using OpenOCD
